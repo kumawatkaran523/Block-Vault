@@ -70,7 +70,7 @@ function Mainpage() {
     const [loading, setLoading] = useState(false)
     const [sentLoading, setSentLoading] = useState(false)
     const [isDialogOpen, setIsDialogOpen] = useState(false);
-    const [proceed, setProceed] = useState(false);
+
     useEffect(() => {
         if (darkMode) {
             document.documentElement.classList.add('dark');
@@ -113,6 +113,10 @@ function Mainpage() {
     const handleDialogAction = (action) => {
         if (action === 'proceed') {
             setIsDialogOpen(false);
+            localStorage.removeItem('ethereumKeypair')
+            localStorage.removeItem('solanaKeypair')
+            setEthereumKeypair([]);
+            setSolanaKeypair([]);
             generateNewMnemonic();
         } else {
             setIsDialogOpen(false); // Close dialog without action
