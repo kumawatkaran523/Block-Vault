@@ -39,9 +39,27 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { CircularProgress } from '@mui/material';
 import toast, { Toaster } from 'react-hot-toast';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 function Mainpage() {
-    const [darkMode, setDarkMode] = useState(localStorage.getItem('theme') === 'dark');
+    const [darkMode, setDarkMode] = useState(() => {
+        const storedTheme = localStorage.getItem('theme');
+        if (storedTheme) {
+            return storedTheme === 'dark';
+        }
+        localStorage.setItem('theme', 'dark');
+        return true;
+    });
     const [mnemonic, setMnemonic] = useState([]);
     const [seed, setSeed] = useState();
     const [network, setNetwork] = useState('ethereum');
@@ -51,6 +69,8 @@ function Mainpage() {
     const [open, setOpen] = useState(false)
     const [loading, setLoading] = useState(false)
     const [sentLoading, setSentLoading] = useState(false)
+    const [isDialogOpen, setIsDialogOpen] = useState(false);
+    const [proceed, setProceed] = useState(false);
     useEffect(() => {
         if (darkMode) {
             document.documentElement.classList.add('dark');
@@ -61,21 +81,41 @@ function Mainpage() {
         }
     }, [darkMode]);
 
-    const handleGenerateMnemonic = () => {
+
+    const generateNewMnemonic = () => {
         try {
             const mn = generateMnemonic();
             const mnemonicArray = mn.split(' ');
             const seedBuffer = mnemonicToSeedSync(mn);
-
-            // Update state
             setMnemonic(mnemonicArray);
             setSeed(seedBuffer);
-
-            // Store in local storage
+            toast.success('Seed Phrase Generated !')
             localStorage.setItem('mnemonic', JSON.stringify(mnemonicArray));
             localStorage.setItem('seed', seedBuffer.toString('hex'));
+        }
+        catch (error) {
+            toast.success('Seed Phrase Generated!')
+            console.log('Error generating mnemonic:', error.message);
+        }
+    };
+    const handleGenerateMnemonic = () => {
+        try {
+            if (mnemonic.length > 0) {
+                setIsDialogOpen(true); // Show dialog
+            } else {
+                generateNewMnemonic(); // Directly generate if no existing mnemonic
+            }
         } catch (error) {
             console.log('Error generating mnemonic:', error.message);
+            toast.error('Error generating Seed Phrase!');
+        }
+    };
+    const handleDialogAction = (action) => {
+        if (action === 'proceed') {
+            setIsDialogOpen(false);
+            generateNewMnemonic();
+        } else {
+            setIsDialogOpen(false); // Close dialog without action
         }
     };
 
@@ -95,8 +135,7 @@ function Mainpage() {
 
                 const newKeyPair = { publicKey, privateKey };
                 setSolanaKeypair((prev) => [...prev, newKeyPair]);
-
-                // Store Solana keypair in local storage
+                toast.success('New Wallet Added !')
                 const existingPairs = JSON.parse(localStorage.getItem('solanaKeypair') || '[]');
                 localStorage.setItem('solanaKeypair', JSON.stringify([...existingPairs, newKeyPair]));
             } else if (network === 'ethereum') {
@@ -105,15 +144,13 @@ function Mainpage() {
                 const privateKey = Buffer.from(derivedSeed).toString('hex');
                 const wallet = new ethers.Wallet(privateKey);
                 const publicKey = wallet.address;
-
+                console.log(publicKey)
                 const newKeyPair = { publicKey, privateKey };
                 setEthereumKeypair((prev) => [...prev, newKeyPair]);
-                handleGetEth(selectedAccount.publicKey);
-
-                // Store Ethereum keypair in local storage
+                toast.success('New Wallet Added !')
                 const existingPairs = JSON.parse(localStorage.getItem('ethereumKeypair') || '[]');
                 localStorage.setItem('ethereumKeypair', JSON.stringify([...existingPairs, newKeyPair]));
-            } setOpen((prev) => !prev)
+            }
         } catch (error) {
             console.log('Error generating key pair:', error.message);
         }
@@ -250,6 +287,7 @@ function Mainpage() {
         }
     };
 
+
     useEffect(() => {
         const storedMnemonic = JSON.parse(localStorage.getItem('mnemonic') || '[]');
         const storedSeed = localStorage.getItem('seed');
@@ -270,26 +308,47 @@ function Mainpage() {
             <div className={`${darkMode ? 'bg-gray-900 text-white' : 'bg-slate-200 text-black'} p-8 font-poppins h-screen`}>
                 <div className='flex justify-center'>
                     <Button onClick={handleGenerateMnemonic}>Generate Seed Phrase</Button>
+                    <AlertDialog
+                        className="font-poppins"
+                        open={isDialogOpen}
+                        onOpenChange={setIsDialogOpen}
+                    >
+                        <AlertDialogContent className="font-poppins">
+                            <AlertDialogHeader>
+                                <AlertDialogTitle className="text-red-600">Are you absolutely sure?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                    Generating a new seed phrase will replace your old one and all associated accounts.
+                                </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel onClick={() => handleDialogAction('cancel')}>
+                                    Cancel
+                                </AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDialogAction('proceed')}>
+                                    Continue
+                                </AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
                 </div>
                 <Accordion type='single' collapsible>
                     <AccordionItem value="item-1">
                         <AccordionTrigger> Reveal My Seed Phrase. Please Don't Share It with Anyone</AccordionTrigger>
                         {mnemonic.length > 0 && (
-                                <div onClick={() => navigator.clipboard.writeText(selectedAccount.privateKey).then(() => {
-                                    toast.success('Seed Phrase copied!')
-                                })}>
-                            <AccordionContent className='grid grid-cols-4 gap-6 border-2 border-gray-600 border-dashed rounded-xl p-5' >
+                            <div onClick={() => navigator.clipboard.writeText(mnemonic).then(() => {
+                                toast.success('Seed Phrase copied!')
+                            })}>
+                                <AccordionContent className='grid grid-cols-4 gap-6 border-2 border-gray-600 border-dashed rounded-xl p-5' >
 
-                                {mnemonic.map((item, index) => (
-                                    <Button variant="secondary" key={index} className='text-xl py-5'>{item}</Button>
-                                ))}
-                                <p className='text-center col-span-4 text-gray-400'>Click Anywhere to copy</p>
-                            </AccordionContent>
-                                </div>
+                                    {mnemonic.map((item, index) => (
+                                        <Button variant="secondary" key={index} className='text-xl py-5'>{item}</Button>
+                                    ))}
+                                    <p className='text-center col-span-4 text-gray-400'>Click Anywhere to copy</p>
+                                </AccordionContent>
+                            </div>
                         )}
                     </AccordionItem>
                 </Accordion>
-
                 <div className='flex justify-around items-center'>
                     <Select value={network} onValueChange={setNetwork}>
                         <SelectTrigger className="w-[200px] mt-7 py-5">
@@ -408,15 +467,15 @@ function Mainpage() {
                                     {/* <p className='py-2 text-sm'><span className=' text-blue-600'>En : </span> {network === 'ethereum' ? parseFloat(balance) : {sol}}</p> */}
                                     <Input type="recipient" id="recipient" placeholder="Amount" className=' my-5 py-6 font-poppins text-4xl' onChange={(e) => setAmount(e.target.value)} />
                                     <div className=' flex justify-between items-center gap-6'>
-                                        <Button type="submit" className='my-3 text-lg w-full'disabled={sentLoading}> {sentLoading ? 'Sending....' : 'Send'}</Button>
+                                        <Button type="submit" className='my-3 text-lg w-full' disabled={sentLoading}> {sentLoading ? 'Sending....' : 'Send'}</Button>
                                         <Button className='w-full text-lg bg-red-900 dark:text-white hover:bg-red-700' onClick={() => setOpen((prev) => !prev)}>Cancel</Button>
                                     </div>
                                 </form>
                             </div>
                         )}
-                        <Toaster position="top-right" />
                     </>
                 )}
+                <Toaster position="top-right" />
             </div>
             <p className='my-7 font-poppins text-lg text-center'>Designed and Developed By Karan</p>
         </div>
