@@ -95,18 +95,16 @@ function Mainpage() {
         }
         catch (error) {
             toast.success('Seed Phrase Generated!')
-            console.log('Error generating mnemonic:', error.message);
         }
     };
     const handleGenerateMnemonic = () => {
         try {
             if (mnemonic.length > 0) {
-                setIsDialogOpen(true); // Show dialog
+                setIsDialogOpen(true); 
             } else {
-                generateNewMnemonic(); // Directly generate if no existing mnemonic
+                generateNewMnemonic(); 
             }
         } catch (error) {
-            console.log('Error generating mnemonic:', error.message);
             toast.error('Error generating Seed Phrase!');
         }
     };
@@ -119,7 +117,7 @@ function Mainpage() {
             setSolanaKeypair([]);
             generateNewMnemonic();
         } else {
-            setIsDialogOpen(false); // Close dialog without action
+            setIsDialogOpen(false); 
         }
     };
 
@@ -148,7 +146,6 @@ function Mainpage() {
                 const privateKey = Buffer.from(derivedSeed).toString('hex');
                 const wallet = new ethers.Wallet(privateKey);
                 const publicKey = wallet.address;
-                console.log(publicKey)
                 const newKeyPair = { publicKey, privateKey };
                 setEthereumKeypair((prev) => [...prev, newKeyPair]);
                 toast.success('New Wallet Added !')
@@ -167,7 +164,6 @@ function Mainpage() {
         if (network === 'ethereum') {
             const selected = ethereumKeypair.find(account => account.publicKey === publicKey);
             setSelectedAccountEth(selected);
-            console.log(selected.publicKey)
             handleGetEth(selected.publicKey);
         } else if (network === 'solana') {
             const selected = solanaKeypair.find(account => account.publicKey === publicKey);
@@ -188,7 +184,6 @@ function Mainpage() {
         setLoading(true);
         const balanceInWei = await provider.getBalance(publicKey)
         setBalance(ethers.formatEther(balanceInWei));
-        console.log(ethers.formatEther(balanceInWei));
         setLoading(false);
     }
     const [sol, setSol] = useState(0.0000);
@@ -203,7 +198,6 @@ function Mainpage() {
             setLoading(false);
         } catch (error) {
             setLoading(false);
-            console.error("Error fetching balance:", error);
         }
     }
 
@@ -211,15 +205,14 @@ function Mainpage() {
     const [amount, setAmount] = useState('');
 
     const handleSendEth = async () => {
-        console.log(recipient, amount);
         if (!ethers.isAddress(recipient)) {
             console.error('Invalid Ethereum address');
-            return; // Handle invalid Ethereum address
+            return; 
         }
 
         if (isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
             console.error('Invalid amount');
-            return; // Handle invalid amount
+            return; 
         }
 
         try {
@@ -231,36 +224,29 @@ function Mainpage() {
                 gasLimit: 21000,
                 gasPrice: ((await provider.getFeeData()).gasPrice),
             };
-            console.log(tx);
             const transaction = await wallet.sendTransaction(tx);
-            console.log(transaction.hash);
             handleGetEth();
             toast.success('Amount Sent Successfully!')
             setOpen((prev) => !prev);
             setSentLoading(false);
         } catch (error) {
             setSentLoading(false);
-            console.error("Error sending ETH:", error);
         }
     };
 
     const handleSendSol = async () => {
         if (!recipient || !amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
             console.error('Invalid recipient or amount');
-            return; // Handle invalid amount or recipient
+            return; 
         }
 
         try {
-            setSentLoading(true); // Show loader
-            // Connect to Solana network
+            setSentLoading(true); 
             const connection = new Connection(clusterApiUrl("devnet"), "confirmed");
-            // Convert sender private key to Keypair
             const senderSecretKey = Uint8Array.from(bs58.decode(selectedAccount.privateKey));
             const sender = Keypair.fromSecretKey(senderSecretKey);
-            // Convert receiver's public key to PublicKey
             const receiverPublicKey = new PublicKey(recipient);
             const lamports = parseFloat(amount) * LAMPORTS_PER_SOL;
-
             const transaction = new Transaction().add(
                 SystemProgram.transfer({
                     fromPubkey: sender.publicKey,
@@ -268,16 +254,13 @@ function Mainpage() {
                     lamports,
                 })
             );
-            console.log(connection);
             const signature = await sendAndConfirmTransaction(connection, transaction, [sender]);
-            console.log("Transaction successful! Signature:", signature);
-            handleGetSol(); // Assume this function updates the SOL balance
+            handleGetSol();
             setOpen((prev) => !prev);
             toast.success('Amount Sent Successfully!')
-            setSentLoading(false); // Hide loader
+            setSentLoading(false); 
         } catch (error) {
-            setSentLoading(false); // Hide loader
-            console.error("Error sending SOL with Alchemy:", error);
+            setSentLoading(false); 
             toast.error('Error sending SOL.');
         }
     };
@@ -468,7 +451,6 @@ function Mainpage() {
                                 <form action="" onSubmit={handleSubmit}>
                                     <Label htmlFor="from" className=' text-lg'>To</Label>
                                     <Input type="recipient" id="recipient" placeholder="Recipient Address" className=' py-6 font-poppins text-4xl' onChange={(e) => setRecipient(e.target.value)} />
-                                    {/* <p className='py-2 text-sm'><span className=' text-blue-600'>En : </span> {network === 'ethereum' ? parseFloat(balance) : {sol}}</p> */}
                                     <Input type="recipient" id="recipient" placeholder="Amount" className=' my-5 py-6 font-poppins text-4xl' onChange={(e) => setAmount(e.target.value)} />
                                     <div className=' flex justify-between items-center gap-6'>
                                         <Button type="submit" className='my-3 text-lg w-full' disabled={sentLoading}> {sentLoading ? 'Sending....' : 'Send'}</Button>
